@@ -4,15 +4,17 @@
 # Where <renders_dir> is ckpt_dir/test_renders
 # or jaxnerf test renders dir
 
-from util.dataset import datasets
-from util.util import compute_ssim, viridis_cmap
-from util import config_util
-from os import path
-from glob import glob
-import imageio
-import math
 import argparse
+import math
+from glob import glob
+from os import path
+
+import imageio
 import torch
+
+from util import config_util
+from util.dataset import datasets
+from util.util import compute_ssim
 
 parser = argparse.ArgumentParser()
 parser.add_argument('render_dir', type=str)
@@ -27,16 +29,16 @@ if path.isfile(args.render_dir):
 device = 'cuda:0'
 
 import lpips
+
 lpips_vgg = lpips.LPIPS(net="vgg").eval().to(device)
 
 dset = datasets[args.dataset_type](args.data_dir, split="test",
-                                    **config_util.build_data_options(args))
-
+                                   **config_util.build_data_options(args))
 
 im_files = sorted(glob(path.join(args.render_dir, "*.png")))
-im_files = [x for x in im_files if not path.basename(x).startswith('disp_')]   # Remove depths
+im_files = [x for x in im_files if not path.basename(x).startswith('disp_')]  # Remove depths
 assert len(im_files) == dset.n_images, \
-       f'number of images found {len(im_files)} differs from test set images:{dset.n_images}'
+    f'number of images found {len(im_files)} differs from test set images:{dset.n_images}'
 
 avg_psnr = 0.0
 avg_ssim = 0.0
@@ -56,12 +58,12 @@ for i, im_path in enumerate(im_files):
         im_gt = im_gt[del_tb:-del_tb, del_lr:-del_lr]
 
     mse = (im - im_gt) ** 2
-    mse_num : float = mse.mean().item()
+    mse_num: float = mse.mean().item()
     psnr = -10.0 * math.log10(mse_num)
     ssim = compute_ssim(im_gt, im).item()
     lpips_i = lpips_vgg(im_gt.permute([2, 0, 1]).cuda().contiguous(),
-            im.permute([2, 0, 1]).cuda().contiguous(),
-            normalize=True).item()
+                        im.permute([2, 0, 1]).cuda().contiguous(),
+                        normalize=True).item()
 
     print(i, 'of', len(im_files), '; PSNR', psnr, 'SSIM', ssim, 'LPIPS', lpips_i)
     avg_psnr += psnr

@@ -1,5 +1,6 @@
 // Copyright 2021 Alex Yu
 #pragma once
+
 #include <cstdint>
 #include <cmath>
 
@@ -17,7 +18,7 @@ struct RandomEngine32 {
     }
 
     __host__ __device__
-    void rand2(float* out1, float* out2) {
+    void rand2(float *out1, float *out2) {
         const uint32_t z = (*this)();
         const uint32_t fmax = (1 << 16);
         const uint32_t z1 = z >> 16;
@@ -36,7 +37,7 @@ struct RandomEngine32 {
 
 
     __host__ __device__
-    void randn2(float* out1, float* out2) {
+    void randn2(float *out1, float *out2) {
         rand2(out1, out2);
         // Box-Muller transform
         const float srlog = sqrtf(-2 * logf(*out1 + 1e-32f));
@@ -50,7 +51,7 @@ struct RandomEngine32 {
         float x, y;
         rand2(&x, &y);
         // Box-Muller transform
-        return sqrtf(-2 * logf(x + 1e-32f))* cosf(2 * M_PI * y);
+        return sqrtf(-2 * logf(x + 1e-32f)) * cosf(2 * M_PI * y);
     }
 
     __host__ __device__

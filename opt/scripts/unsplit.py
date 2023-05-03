@@ -1,12 +1,11 @@
 """
 Inverse of create_split.py
 """
+import argparse
 # Copyright 2021 Alex Yu
 import os
 import os.path as osp
-import click
 from typing import NamedTuple, List
-import argparse
 
 parser = argparse.ArgumentParser()
 parser.add_argument('root_dir', type=str, help="COLMAP dataset root dir")
@@ -14,9 +13,11 @@ parser.add_argument('--dry_run', action='store_true', help="Dry run, prints rena
 parser.add_argument('--yes', '-y', action='store_true', help="Answer yes")
 args = parser.parse_args()
 
+
 class Dir(NamedTuple):
     name: str
     valid_exts: List[str]
+
 
 def list_filter_dirs(base):
     all_dirs = [x for x in os.listdir(base) if osp.isdir(osp.join(base, x))]
@@ -37,6 +38,7 @@ def list_filter_dirs(base):
                 dirs.append(Dir(name=osp.join(base, d), valid_exts=pfx.valid_exts))
     return dirs, dir_idx
 
+
 dirs, dir_idx = list_filter_dirs(args.root_dir)
 
 refdir = dirs[dir_idx]
@@ -44,6 +46,7 @@ print("going to unsplit", [x.name for x in dirs], "reference", dirs[dir_idx].nam
 do_proceed = args.dry_run or args.yes
 if not do_proceed:
     import click
+
     do_proceed = click.confirm("Continue?", default=True)
 if do_proceed:
     filedata = {}

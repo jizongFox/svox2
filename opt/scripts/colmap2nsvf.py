@@ -47,14 +47,15 @@ the images will be resized dynamically on load.
 
 The code to parse the COLMAP sparse bin files is from LLFF.
 """
+import argparse
+import collections
 # Copyright 2021 Alex Yu
 import os
 import os.path as osp
-import numpy as np
-import struct
-import collections
-import argparse
 import shutil
+import struct
+
+import numpy as np
 
 CameraModel = collections.namedtuple(
     "CameraModel", ["model_id", "model_name", "num_params"]
@@ -138,7 +139,7 @@ def read_colmap_sparse(sparse_path):
             model_id = camera_properties[1]
             model_name = CAMERA_MODEL_IDS[camera_properties[1]].model_name
             assert model_name in ["SIMPLE_PINHOLE", "SIMPLE_RADIAL"], \
-                   "Only SIMPLE_PINHOLE/SIMPLE_RADIAL supported"
+                "Only SIMPLE_PINHOLE/SIMPLE_RADIAL supported"
             width = camera_properties[2]
             height = camera_properties[3]
             num_params = CAMERA_MODEL_IDS[model_id].num_params
@@ -251,8 +252,8 @@ def main():
         action="store_true",
         default=False,
         help="Change camera space convention to match NeRF, jaxNeRF "
-        "(our implementation uses OpenCV convention and does not need this, "
-        "set data.gl_cam_space = True in the config if you use this option)",
+             "(our implementation uses OpenCV convention and does not need this, "
+             "set data.gl_cam_space = True in the config if you use this option)",
     )
     parser.add_argument(
         "--overwrite",

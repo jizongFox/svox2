@@ -1,27 +1,26 @@
 # Copyright 2021 Alex Yu
 # Render 360 circle path
 
-import torch
-import svox2
-import svox2.utils
-import math
 import argparse
-import numpy as np
-import os
 from os import path
-from util.dataset import datasets
-from util.util import Timing, compute_ssim, viridis_cmap, pose_spherical
-from util import config_util
 
 import imageio
-import cv2
+import numpy as np
+import torch
 from tqdm import tqdm
+
+import svox2.utils
+from util import config_util
+from util.dataset import datasets
+from util.util import pose_spherical
+
 parser = argparse.ArgumentParser()
 parser.add_argument('ckpt', type=str)
 
 config_util.define_common_args(parser)
 
-parser.add_argument('--n_eval', '-n', type=int, default=100000, help='images to evaluate (equal interval), at most evals every image')
+parser.add_argument('--n_eval', '-n', type=int, default=100000,
+                    help='images to evaluate (equal interval), at most evals every image')
 parser.add_argument('--traj_type',
                     choices=['spiral', 'circle'],
                     default='spiral',
@@ -31,13 +30,13 @@ parser.add_argument('--fps',
                     default=30,
                     help="FPS of video")
 parser.add_argument(
-                "--width", "-W", type=float, default=None, help="Rendering image width (only if not --traj)"
-                        )
+    "--width", "-W", type=float, default=None, help="Rendering image width (only if not --traj)"
+)
 parser.add_argument(
-                    "--height", "-H", type=float, default=None, help="Rendering image height (only if not --traj)"
-                            )
+    "--height", "-H", type=float, default=None, help="Rendering image height (only if not --traj)"
+)
 parser.add_argument(
-	"--num_views", "-N", type=int, default=600,
+    "--num_views", "-N", type=int, default=600,
     help="Number of frames to render"
 )
 
@@ -63,7 +62,7 @@ parser.add_argument(
     type=str,
     default=None,
     help="up axis for camera views (only if not --traj);"
-    "3 floats separated by ','; if not given automatically determined",
+         "3 floats separated by ','; if not given automatically determined",
 )
 parser.add_argument(
     "--vert_shift",
@@ -98,9 +97,8 @@ args = parser.parse_args()
 config_util.maybe_merge_config_file(args, allow_invalid=True)
 device = 'cuda:0'
 
-
 dset = datasets[args.dataset_type](args.data_dir, split="test",
-                                    **config_util.build_data_options(args))
+                                   **config_util.build_data_options(args))
 
 if args.vec_up is None:
     up_rot = dset.c2w[:, :3, :3].cpu().numpy()
@@ -110,7 +108,6 @@ if args.vec_up is None:
     print('  Auto vec_up', args.vec_up)
 else:
     args.vec_up = np.array(list(map(float, args.vec_up.split(","))))
-
 
 args.offset = np.array(list(map(float, args.offset.split(","))))
 if args.traj_type == 'spiral':
@@ -136,7 +133,7 @@ if args.traj_type == 'spiral':
         )
         for ele, angle in zip(reversed(elevations), angles)
     ]
-else :
+else:
     c2ws = [
         pose_spherical(
             angle,
@@ -211,7 +208,7 @@ with torch.no_grad():
     n_images_gen = 0
     frames = []
     #  if args.near_clip >= 0.0:
-    grid.opt.near_clip = 0.0 #args.near_clip
+    grid.opt.near_clip = 0.0  # args.near_clip
     if args.width is None:
         args.width = dset.get_image_size(0)[1]
     if args.height is None:
@@ -243,5 +240,3 @@ with torch.no_grad():
     if len(frames):
         vid_path = render_out_path
         imageio.mimwrite(vid_path, frames, fps=args.fps, macro_block_size=8)  # pip install imageio-ffmpeg
-
-

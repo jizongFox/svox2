@@ -8,51 +8,50 @@
 # Copyright (c) 2021 VISTEC - Vidyasirimedhi Institute of Science and Technology
 # Distribute under MIT License
 
-#from torch.utils.data import Dataset
-from scipy.spatial.transform import Rotation
-import struct
-import json
-import glob
 import copy
-
-import numpy as np
+import json
 import os
-import torch
-import torch.nn.functional as F
-from collections import deque
-from tqdm import tqdm
-import imageio
-import cv2
-from .util import Rays, Intrin
-from .dataset_base import DatasetBase
-from .load_llff import load_llff_data
+import struct
 from typing import Union, Optional
 
+import cv2
+import imageio
+import numpy as np
+import torch
+# from torch.utils.data import Dataset
+from scipy.spatial.transform import Rotation
+from tqdm import tqdm
+
 from svox2.utils import convert_to_ndc
+from .dataset_base import DatasetBase
+from .load_llff import load_llff_data
+from .util import Rays, Intrin
+
 
 class LLFFDataset(DatasetBase):
     """
     LLFF dataset loader adapted from NeX code
     Some arguments are inherited from them and not super useful in our case
     """
+
     def __init__(
-        self,
-        root : str,
-        split : str,
-        epoch_size : Optional[int] = None,
-        device: Union[str, torch.device] = "cpu",
-        permutation: bool = True,
-        factor: int = 1,
-        ref_img: str="",
-        scale : Optional[float]=1.0/4.0,  # 4x downsample
-        dmin : float=-1,
-        dmax : int=-1,
-        invz : int= 0,
-        transform=None,
-        render_style="",
-        hold_every=8,
-        offset=250,
-        **kwargs
+            self,
+            root: str,
+            split: str,
+            epoch_size: Optional[int] = None,
+            device: Union[str, torch.device] = "cpu",
+            permutation: bool = True,
+            factor: int = 1,
+            ref_img: str = "",
+            scale: Optional[float] = 1.0 / 4.0,  # 4x downsample
+            dmin: float = -1,
+            dmax: int = -1,
+            invz: int = 0,
+            transform=None,
+            render_style="",
+            hold_every=8,
+            offset=250,
+            **kwargs
     ):
         super().__init__()
         if scale is None:
@@ -77,8 +76,8 @@ class LLFFDataset(DatasetBase):
         )
 
         assert len(self.sfm.cams) == 1, \
-                "Currently assuming 1 camera for simplicity, " \
-                "please feel free to extend"
+            "Currently assuming 1 camera for simplicity, " \
+            "please feel free to extend"
 
         self.imgs = []
         is_train_split = split.endswith('train')
@@ -108,7 +107,6 @@ class LLFFDataset(DatasetBase):
             self.h, self.w = self.h_full, self.w_full
             self.intrins = self.intrins_full
         self.should_use_background = False  # Give warning
-
 
     def _load_images(self):
         scale = self.scale
@@ -188,28 +186,27 @@ class LLFFDataset(DatasetBase):
         # To NDC (currently, we are normalizing these rays unlike NeRF,
         #  may not be ideal)
         origins, dirs = convert_to_ndc(
-                self.rays.origins,
-                self.rays.dirs,
-                self.ndc_coeffs)
+            self.rays.origins,
+            self.rays.dirs,
+            self.ndc_coeffs)
         dirs /= torch.norm(dirs, dim=-1, keepdim=True)
 
         self.rays_init = Rays(origins=origins, dirs=dirs, gt=self.rays.gt)
         self.rays = self.rays_init
 
 
-
 class SfMData:
     def __init__(
-        self,
-        root,
-        ref_img="",
-        scale=1,
-        dmin=0,
-        dmax=0,
-        invz=0,
-        render_style="",
-        offset=200,
-        hold_every=8,
+            self,
+            root,
+            ref_img="",
+            scale=1,
+            dmin=0,
+            dmax=0,
+            invz=0,
+            render_style="",
+            offset=200,
+            hold_every=8,
     ):
         self.scale = scale
         self.ref_cam = None
@@ -227,9 +224,9 @@ class SfMData:
         self.offset = offset
         # Detect dataset type
         can_hanle = (
-            self.readDeepview(root)
-            or self.readLLFF(root, ref_img)
-            or self.readColmap(root)
+                self.readDeepview(root)
+                or self.readLLFF(root, ref_img)
+                or self.readColmap(root)
         )
         if not can_hanle:
             raise Exception("Unknow dataset type")
@@ -358,12 +355,15 @@ class SfMData:
                 return x[2:]
             else:
                 return x
+
         def keep_images(x):
             exts = ['.png', '.jpg', '.jpeg', '.exr']
-            return [y for y in x if not y.startswith('.') and any((y.lower().endswith(ext) for ext in exts))] 
+            return [y for y in x if not y.startswith('.') and any((y.lower().endswith(ext) for ext in exts))]
 
-        # get all image of this dataset
-        images_path = [os.path.join(scaled_img_dir, f) for f in sorted(keep_images(os.listdir(image_dir)), key=nsvf_sort_key)]
+            # get all image of this dataset
+
+        images_path = [os.path.join(scaled_img_dir, f) for f in
+                       sorted(keep_images(os.listdir(image_dir)), key=nsvf_sort_key)]
 
         # LLFF dataset has only single camera in dataset
         if len(intrinsic) == 3:
@@ -397,7 +397,7 @@ class SfMData:
 
         # if not set dmin/dmax, use LLFF dmin/dmax
         if (self.dmin < 0 or self.dmax < 0) and (
-            not os.path.exists(dataset + "/planes.txt")
+                not os.path.exists(dataset + "/planes.txt")
         ):
             self.dmin = reference_depth[0]
             self.dmax = reference_depth[1]

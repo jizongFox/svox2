@@ -1,38 +1,34 @@
 # Copyright 2021 Alex Yu
 
-import torch
-import torch.nn.functional as F
-import numpy as np
-import random
-from multiprocessing import Process, Queue
-import os
-from os import path, listdir
 import argparse
+import itertools
 import json
+import os
+import random
 import subprocess
 import sys
+from multiprocessing import Process, Queue
+from os import path
 from typing import List, Dict
-import itertools
-from warnings import warn
-from datetime import datetime
+
 import numpy as np
-from glob import glob
 
 parser = argparse.ArgumentParser()
 parser.add_argument("task_json", type=str)
 parser.add_argument("--gpus", "-g", type=str, required=True,
-                            help="space delimited GPU id list (global id in nvidia-smi, "
-                                 "not considering CUDA_VISIBLE_DEVICES)")
+                    help="space delimited GPU id list (global id in nvidia-smi, "
+                         "not considering CUDA_VISIBLE_DEVICES)")
 parser.add_argument('--eval', action='store_true', default=False,
-                   help='evaluation mode (run the render_imgs script)')
+                    help='evaluation mode (run the render_imgs script)')
 parser.add_argument('--render', action='store_true', default=False,
-                   help='also run render_imgs.py with --render_path to render a rotating trajectory (forward-facing case)')
+                    help='also run render_imgs.py with --render_path to render a rotating trajectory (forward-facing case)')
 args = parser.parse_args()
 
 PSNR_FILE_NAME = 'test_psnr.txt'
 
-def run_exp(env, eval_mode:bool, enable_render:bool, train_dir, data_dir, config, flags, eval_flags, common_flags):
-    opt_base_cmd = [ "python", "opt.py", "--tune_mode" ]
+
+def run_exp(env, eval_mode: bool, enable_render: bool, train_dir, data_dir, config, flags, eval_flags, common_flags):
+    opt_base_cmd = ["python", "opt.py", "--tune_mode"]
 
     if not eval_mode:
         opt_base_cmd += ["--tune_nosave"]
@@ -61,7 +57,7 @@ def run_exp(env, eval_mode:bool, enable_render:bool, train_dir, data_dir, config
         print(opt_cmd)
         try:
             opt_ret = subprocess.check_output(opt_cmd, shell=True, env=env).decode(
-                    sys.stdout.encoding)
+                sys.stdout.encoding)
         except subprocess.CalledProcessError:
             print('Error occurred while running OPT for exp', train_dir, 'on', env["CUDA_VISIBLE_DEVICES"])
             return
@@ -83,7 +79,7 @@ def run_exp(env, eval_mode:bool, enable_render:bool, train_dir, data_dir, config
             print(eval_cmd)
             try:
                 eval_ret = subprocess.check_output(eval_cmd, shell=True, env=env).decode(
-                        sys.stdout.encoding)
+                    sys.stdout.encoding)
             except subprocess.CalledProcessError:
                 print('Error occurred while running EVAL for exp', train_dir, 'on', env["CUDA_VISIBLE_DEVICES"])
                 return
@@ -95,7 +91,7 @@ def run_exp(env, eval_mode:bool, enable_render:bool, train_dir, data_dir, config
             render_cmd = ' '.join(eval_base_cmd + eval_flags + common_flags)
             try:
                 render_ret = subprocess.check_output(render_cmd, shell=True, env=env).decode(
-                        sys.stdout.encoding)
+                    sys.stdout.encoding)
             except subprocess.CalledProcessError:
                 print('Error occurred while running RENDER for exp', train_dir, 'on', env["CUDA_VISIBLE_DEVICES"])
                 return
@@ -113,7 +109,8 @@ def run_exp(env, eval_mode:bool, enable_render:bool, train_dir, data_dir, config
         with open(psnr_file_path, 'w') as f:
             f.write(str(final_test_psnr))
 
-def process_main(device, eval_mode:bool, enable_render:bool, queue):
+
+def process_main(device, eval_mode: bool, enable_render: bool, queue):
     # Set CUDA_VISIBLE_DEVICES programmatically
     env = os.environ.copy()
     env["CUDA_VISIBLE_DEVICES"] = str(device)
@@ -123,22 +120,28 @@ def process_main(device, eval_mode:bool, enable_render:bool, queue):
             break
         run_exp(env, eval_mode, enable_render, **task)
 
+
 # Variable value list generation helpers
 def lin(start, stop, num):
     return np.linspace(start, stop, num).tolist()
+
 
 def randlin(start, stop, num):
     lst = np.linspace(start, stop, num + 1)[:-1]
     lst += np.random.uniform(low=0.0, high=(lst[1] - lst[0]), size=lst.shape)
     return lst.tolist()
 
+
 def loglin(start, stop, num):
     return np.exp(np.linspace(np.log(start), np.log(stop), num)).tolist()
+
 
 def randloglin(start, stop, num):
     lst = np.linspace(np.log(start), np.log(stop), num + 1)[:-1]
     lst += np.random.uniform(low=0.0, high=(lst[1] - lst[0]), size=lst.shape)
     return np.exp(lst).tolist()
+
+
 # End variable value list generation helpers
 
 def create_prodvars(variables, noise_stds={}):
@@ -157,14 +160,15 @@ def create_prodvars(variables, noise_stds={}):
         else:
             raise NotImplementedError('variable value must be list of values, or str generator')
 
-    variables = {varname:auto_list(variables[varname]) for varname in variables}
+    variables = {varname: auto_list(variables[varname]) for varname in variables}
     print('variables (prod)', variables)
     varnames = list(variables.keys())
     noise_stds = np.array([noise_stds.get(varname, 0.0) for varname in varnames])
     variables = [[(i, val) for val in variables[varname]] for i, varname in enumerate(varnames)]
     prodvars = list(itertools.product(*variables))
     noise_vals = np.random.randn(len(prodvars), len(varnames)) * noise_stds
-    prodvars = [{varnames[i]:((val + n) if n != 0.0 else val) for (i, val), n in zip(sample, noise_vals_samp)} for sample, noise_vals_samp in zip(prodvars, noise_vals)]
+    prodvars = [{varnames[i]: ((val + n) if n != 0.0 else val) for (i, val), n in zip(sample, noise_vals_samp)} for
+                sample, noise_vals_samp in zip(prodvars, noise_vals)]
     return prodvars
 
 
@@ -174,7 +178,7 @@ def recursive_replace(data, variables):
     elif isinstance(data, list):
         return [recursive_replace(d, variables) for d in data]
     elif isinstance(data, dict):
-        return {k:recursive_replace(data[k], variables) for k in data.keys()}
+        return {k: recursive_replace(data[k], variables) for k in data.keys()}
     else:
         return data
 
@@ -203,16 +207,16 @@ if __name__ == '__main__':
     leaderboard_path = path.join(train_root, 'results.txt' if args.eval else 'leaderboard.txt')
     print('Leaderboard path:', leaderboard_path)
 
-    variables : Dict = tasks_file.get('variables', {})
-    noises : Dict = tasks_file.get('noises', {})
+    variables: Dict = tasks_file.get('variables', {})
+    noises: Dict = tasks_file.get('noises', {})
     assert isinstance(variables, dict), 'var must be dict'
 
-    prodvars : List[Dict] = create_prodvars(variables, noises)
+    prodvars: List[Dict] = create_prodvars(variables, noises)
     del variables
 
     for task_templ in all_tasks_templ:
         for variables in prodvars:
-            task : Dict = recursive_replace(task_templ, variables)
+            task: Dict = recursive_replace(task_templ, variables)
             task['train_dir'] = path.join(train_root, task['train_dir'])  # Required
             task['data_dir'] = path.join(data_root, task.get('data_dir', '')).rstrip('/')
             task['flags'] = task.get('flags', []) + base_flags
@@ -252,7 +256,7 @@ if __name__ == '__main__':
         print('Done')
         with open(leaderboard_path, 'w') as leaderboard_file:
             lines = [f'dir\tPSNR\tSSIM\tLPIPS\nminutes\n']
-            all_tasks = sorted(all_tasks, key=lambda task:task['train_dir'])
+            all_tasks = sorted(all_tasks, key=lambda task: task['train_dir'])
             all_psnr = []
             all_ssim = []
             all_lpips = []
@@ -316,8 +320,7 @@ if __name__ == '__main__':
                     test_psnr = float(f.read())
                     print(train_dir, test_psnr)
                     exps.append((test_psnr, train_dir))
-            exps = sorted(exps, key = lambda x: -x[0])
+            exps = sorted(exps, key=lambda x: -x[0])
             lines = [f'{psnr:.10f}\t{train_dir}\n' for psnr, train_dir in exps]
             leaderboard_file.writelines(lines)
         print('Wrote', leaderboard_path)
-

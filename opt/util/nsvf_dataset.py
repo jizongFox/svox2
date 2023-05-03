@@ -1,19 +1,19 @@
 # Extended NSVF-format dataset loader
 # This is a more sane format vs the NeRF formats
 
-from .util import Rays, Intrin, similarity_from_cameras
-from .dataset_base import DatasetBase
-import torch
-import torch.nn.functional as F
-from typing import NamedTuple, Optional, Union
-from os import path
 import os
+from os import path
+from typing import Optional, Union
+from warnings import warn
+
 import cv2
 import imageio
-from tqdm import tqdm
-import json
 import numpy as np
-from warnings import warn
+import torch
+from tqdm import tqdm
+
+from .dataset_base import DatasetBase
+from .util import Rays, Intrin, similarity_from_cameras
 
 
 class NSVFDataset(DatasetBase):
@@ -31,21 +31,21 @@ class NSVFDataset(DatasetBase):
     split: str
 
     def __init__(
-        self,
-        root,
-        split,
-        epoch_size : Optional[int] = None,
-        device: Union[str, torch.device] = "cpu",
-        scene_scale: Optional[float] = None,  # Scene scaling
-        factor: int = 1,                      # Image scaling (on ray gen; use gen_rays(factor) to dynamically change scale)
-        scale : Optional[float] = 1.0,                    # Image scaling (on load)
-        permutation: bool = True,
-        white_bkgd: bool = True,
-        normalize_by_bbox: bool = False,
-        data_bbox_scale : float = 1.1,                    # Only used if normalize_by_bbox
-        cam_scale_factor : float = 0.95,
-        normalize_by_camera: bool = True,
-        **kwargs
+            self,
+            root,
+            split,
+            epoch_size: Optional[int] = None,
+            device: Union[str, torch.device] = "cpu",
+            scene_scale: Optional[float] = None,  # Scene scaling
+            factor: int = 1,  # Image scaling (on ray gen; use gen_rays(factor) to dynamically change scale)
+            scale: Optional[float] = 1.0,  # Image scaling (on load)
+            permutation: bool = True,
+            white_bkgd: bool = True,
+            normalize_by_bbox: bool = False,
+            data_bbox_scale: float = 1.1,  # Only used if normalize_by_bbox
+            cam_scale_factor: float = 0.95,
+            normalize_by_camera: bool = True,
+            **kwargs
     ):
         super().__init__()
         assert path.isdir(root), f"'{root}' is not a directory"
@@ -71,6 +71,7 @@ class NSVFDataset(DatasetBase):
             if len(x) > 2 and x[1] == "_":
                 return x[2:]
             return x
+
         def look_for_dir(cands, required=True):
             for cand in cands:
                 if path.isdir(path.join(root, cand)):
@@ -140,7 +141,6 @@ class NSVFDataset(DatasetBase):
 
             all_gt.append(torch.from_numpy(image))
 
-
         self.c2w_f64 = torch.stack(all_c2w)
 
         print('NORMALIZE BY?', 'bbox' if normalize_by_bbox else 'camera' if normalize_by_camera else 'manual')
@@ -161,7 +161,7 @@ class NSVFDataset(DatasetBase):
         elif normalize_by_camera:
             norm_pose_files = sorted(os.listdir(path.join(root, pose_dir_name)), key=sort_key)
             norm_poses = np.stack([np.loadtxt(path.join(root, pose_dir_name, x)).reshape(-1, 4)
-                                    for x in norm_pose_files], axis=0)
+                                   for x in norm_pose_files], axis=0)
 
             # Select subset of files
             T, sscale = similarity_from_cameras(norm_poses)
@@ -214,7 +214,7 @@ class NSVFDataset(DatasetBase):
             fy *= scale_h
             cy *= scale_h
 
-        self.intrins_full : Intrin = Intrin(fx, fy, cx, cy)
+        self.intrins_full: Intrin = Intrin(fx, fy, cx, cy)
         print(' intrinsics (loaded reso)', self.intrins_full)
 
         self.scene_scale = scene_scale
@@ -223,4 +223,4 @@ class NSVFDataset(DatasetBase):
         else:
             # Rays are not needed for testing
             self.h, self.w = self.h_full, self.w_full
-            self.intrins : Intrin = self.intrins_full
+            self.intrins: Intrin = self.intrins_full

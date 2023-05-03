@@ -1,12 +1,14 @@
+import math
+from dataclasses import dataclass
 from functools import partial
+from typing import Optional
+
+import numpy as np
 import torch
 from torch import nn
-from typing import Optional, Tuple
-import numpy as np
-from dataclasses import dataclass
-import math
 
-def inthroot(x : int, n : int):
+
+def inthroot(x: int, n: int):
     if x <= 0:
         return None
     lo, hi = 1, x
@@ -21,10 +23,13 @@ def inthroot(x : int, n : int):
             lo = mi + 1
     return None
 
+
 isqrt = partial(inthroot, n=2)
 
-def is_pow2(x : int):
+
+def is_pow2(x: int):
     return x > 0 and (x & (x - 1)) == 0
+
 
 def _get_c_extension():
     from warnings import warn
@@ -45,10 +50,11 @@ def _get_c_extension():
 # Morton code (Z-order curve)
 def _expand_bits(v):
     v = (v | (v << 16)) & 0x030000FF
-    v = (v | (v <<  8)) & 0x0300F00F
-    v = (v | (v <<  4)) & 0x030C30C3
-    v = (v | (v <<  2)) & 0x09249249
+    v = (v | (v << 8)) & 0x0300F00F
+    v = (v | (v << 4)) & 0x030C30C3
+    v = (v | (v << 2)) & 0x09249249
     return v
+
 
 def _unexpand_bits(v):
     v &= 0x49249249
@@ -65,11 +71,13 @@ def morton_code_3(x, y, z):
     zz = _expand_bits(z)
     return (xx << 2) + (yy << 1) + zz
 
+
 def inv_morton_code_3(code):
     x = _unexpand_bits(code >> 2)
     y = _unexpand_bits(code >> 1)
     z = _unexpand_bits(code)
     return x, y, z
+
 
 def gen_morton(D, device='cpu', dtype=torch.long):
     assert is_pow2(D), "Morton code requires power of 2 reso"
@@ -112,7 +120,9 @@ SH_C4 = [
 ]
 
 MAX_SH_BASIS = 10
-def eval_sh_bases(basis_dim : int, dirs : torch.Tensor):
+
+
+def eval_sh_bases(basis_dim: int, dirs: torch.Tensor):
     """
     Evaluate spherical harmonics bases at unit directions,
     without taking linear combination.
@@ -161,15 +171,16 @@ def eval_sh_bases(basis_dim : int, dirs : torch.Tensor):
                     result[..., 24] = SH_C4[8] * (xx * (xx - 3 * yy) - yy * (3 * xx - yy));
     return result
 
+
 # BEGIN Cubemaps
 @dataclass
 class CubemapCoord:
-    ax : torch.Tensor
-    ori : torch.Tensor
-    u : torch.Tensor
-    v : torch.Tensor
+    ax: torch.Tensor
+    ori: torch.Tensor
+    u: torch.Tensor
+    v: torch.Tensor
 
-    def query_in(self, cubemap : torch.Tensor):
+    def query_in(self, cubemap: torch.Tensor):
         face = self.ax * 2 + self.ori
         #  print(cubemap.shape, face.min(), face.max(), ' ',
         #        self.u.min(), self.u.max(),
@@ -180,10 +191,11 @@ class CubemapCoord:
 
     def clone(self):
         return CubemapCoord(
-                self.ax.clone(),
-                self.ori.clone(),
-                self.u.clone(),
-                self.v.clone())
+            self.ax.clone(),
+            self.ori.clone(),
+            self.u.clone(),
+            self.v.clone())
+
 
 @dataclass
 class CubemapBilerpQuery:
@@ -195,9 +207,9 @@ class CubemapBilerpQuery:
     dv: torch.Tensor
 
 
-def dir_to_cubemap_coord(xyz : torch.Tensor,
-                   face_reso : int,
-                   eac : bool = True) -> CubemapCoord:
+def dir_to_cubemap_coord(xyz: torch.Tensor,
+                         face_reso: int,
+                         eac: bool = True) -> CubemapCoord:
     """
     Convert a direction on a sphere (not necessarily normalized)
 
@@ -229,8 +241,9 @@ def dir_to_cubemap_coord(xyz : torch.Tensor,
     v = ((v_eac + 1) * face_reso - 1.0) * 0.5
     return CubemapCoord(ax, ori, u, v)
 
-def cubemap_build_query(idx : CubemapCoord, face_reso : int,
-                        mode : str = 'linear') ->  CubemapBilerpQuery:
+
+def cubemap_build_query(idx: CubemapCoord, face_reso: int,
+                        mode: str = 'linear') -> CubemapBilerpQuery:
     """
     Compute the points on the cubemap for bilinear sampling
     given a cubemap coordinate from dir_to_cubemap_coord;
@@ -251,7 +264,7 @@ def cubemap_build_query(idx : CubemapCoord, face_reso : int,
         idx_ul = CubemapCoord(idx.ax, idx.ori, uf, vf)
         # Corner: triple average
         return CubemapBilerpQuery(idx_ul, idx_ul, idx_ul, idx_ul,
-                    torch.zeros_like(idx.u), torch.zeros_like(idx.v))
+                                  torch.zeros_like(idx.u), torch.zeros_like(idx.v))
     elif mode == 'linear_simple':
         u = idx.u.clamp(0, face_reso - 2)
         v = idx.v.clamp(0, face_reso - 2)
@@ -262,11 +275,11 @@ def cubemap_build_query(idx : CubemapCoord, face_reso : int,
         du = u - uf
         dv = v - vf
         return CubemapBilerpQuery(
-                    CubemapCoord(idx.ax, idx.ori, uf, vf),
-                    CubemapCoord(idx.ax, idx.ori, uf, vc),
-                    CubemapCoord(idx.ax, idx.ori, uc, vf),
-                    CubemapCoord(idx.ax, idx.ori, uc, vc),
-                    du, dv)
+            CubemapCoord(idx.ax, idx.ori, uf, vf),
+            CubemapCoord(idx.ax, idx.ori, uf, vc),
+            CubemapCoord(idx.ax, idx.ori, uc, vf),
+            CubemapCoord(idx.ax, idx.ori, uc, vc),
+            du, dv)
     elif mode == 'linear':
         uf = torch.floor(idx.u).long()
         vf = torch.floor(idx.v).long()
@@ -281,7 +294,7 @@ def cubemap_build_query(idx : CubemapCoord, face_reso : int,
         ud = (idx.ax ^ 1) & 1
         vd = (idx.ax ^ 2) & 2
 
-        def _index_across_sides(nidx : CubemapCoord, uori, vori, mu, mv):
+        def _index_across_sides(nidx: CubemapCoord, uori, vori, mu, mv):
             mdiagonal = mu & mv
             # FIXME not quite correct (matches CUDA impl)
             mu = mu & (~mdiagonal)
@@ -318,28 +331,28 @@ def cubemap_build_query(idx : CubemapCoord, face_reso : int,
             return nidx
 
         i00 = _index_across_sides(CubemapCoord(idx.ax, idx.ori, uf, vf).clone(),
-                0, 0, m0u, m0v)
+                                  0, 0, m0u, m0v)
         i01 = _index_across_sides(CubemapCoord(idx.ax, idx.ori, uf, vc).clone(),
-                0, 1, m0u, m1v)
+                                  0, 1, m0u, m1v)
         i10 = _index_across_sides(CubemapCoord(idx.ax, idx.ori, uc, vf).clone(),
-                1, 0, m1u, m0v)
+                                  1, 0, m1u, m0v)
         i11 = _index_across_sides(CubemapCoord(idx.ax, idx.ori, uc, vc).clone(),
-                1, 1, m1u, m1v)
+                                  1, 1, m1u, m1v)
 
         du = idx.u - uf
         dv = idx.v - vf
         return CubemapBilerpQuery(
-                    i00,
-                    i01,
-                    i10,
-                    i11,
-                    du,
-                    dv)
+            i00,
+            i01,
+            i10,
+            i11,
+            du,
+            dv)
     else:
         raise NotImplementedError()
 
 
-def cubemap_sample(cubemap: torch.Tensor, idx4 : CubemapBilerpQuery):
+def cubemap_sample(cubemap: torch.Tensor, idx4: CubemapBilerpQuery):
     """
     Perform bilinear sampling on a cubemap given a query from cubemap_build_query
 
@@ -364,15 +377,16 @@ def cubemap_sample(cubemap: torch.Tensor, idx4 : CubemapBilerpQuery):
     r1 = v10 * (1 - dv) + v11 * dv
     return r0 * (1 - du) + r1 * du
 
+
 # END Cubemaps
 
 # Ray-sphere intersector for MSI
 class ConcentricSpheresIntersector:
     def __init__(self,
-            size : torch.Tensor,
-            rorigins : torch.Tensor,
-            rdirs : torch.Tensor,
-            rworld_step : torch.Tensor):
+                 size: torch.Tensor,
+                 rorigins: torch.Tensor,
+                 rdirs: torch.Tensor,
+                 rworld_step: torch.Tensor):
         sphere_scaling = 2.0 / size
 
         origins = (rorigins + 0.5) * sphere_scaling - 1.0
@@ -382,13 +396,13 @@ class ConcentricSpheresIntersector:
         self.world_step_scale = rworld_step * inorm
         dirs *= inorm.unsqueeze(-1)
 
-        self.q2a : torch.Tensor = 2 * (dirs * dirs).sum(-1)
-        self.qb : torch.Tensor = 2 * (origins * dirs).sum(-1)
+        self.q2a: torch.Tensor = 2 * (dirs * dirs).sum(-1)
+        self.qb: torch.Tensor = 2 * (origins * dirs).sum(-1)
         self.f = self.qb.square() - 2 * self.q2a * (origins * origins).sum(-1)
         self.origins = origins
         self.dirs = dirs
 
-    def intersect(self, r : float):
+    def intersect(self, r: float):
         """
         Find far intersection of all rays with sphere of radius r
         """
@@ -396,10 +410,10 @@ class ConcentricSpheresIntersector:
         success_mask = det >= 0
         result = torch.zeros_like(self.q2a)
         result[success_mask] = (-self.qb[success_mask] +
-                torch.sqrt(det[success_mask])) / self.q2a[success_mask]
+                                torch.sqrt(det[success_mask])) / self.q2a[success_mask]
         return success_mask, result
 
-    def intersect_near(self, r : float):
+    def intersect_near(self, r: float):
         """
         Find near intersection of all rays with sphere of radius r
         """
@@ -407,10 +421,10 @@ class ConcentricSpheresIntersector:
         success_mask = det >= 0
         result = torch.zeros_like(self.q2a)
         result[success_mask] = (-self.qb[success_mask] -
-                torch.sqrt(det[success_mask])) / self.q2a[success_mask]
+                                torch.sqrt(det[success_mask])) / self.q2a[success_mask]
         return success_mask, result
 
-    def _det(self, r : float) -> torch.Tensor:
+    def _det(self, r: float) -> torch.Tensor:
         return self.f + 2 * self.q2a * (r * r)
 
 
@@ -424,20 +438,21 @@ def memlog(device='cuda'):
                     hasattr(obj, 'data') and torch.is_tensor(obj.data)):
                 if str(obj.device) != 'cpu':
                     print(obj.device, '{: 10}'.format(obj.numel()),
-                            obj.dtype,
-                            obj.size(), type(obj))
+                          obj.dtype,
+                          obj.size(), type(obj))
         except:
             pass
 
 
-def spher2cart(theta : torch.Tensor, phi : torch.Tensor):
+def spher2cart(theta: torch.Tensor, phi: torch.Tensor):
     """Convert spherical coordinates into Cartesian coordinates on unit sphere."""
     x = torch.sin(theta) * torch.cos(phi)
     y = torch.sin(theta) * torch.sin(phi)
     z = torch.cos(theta)
     return torch.stack([x, y, z], dim=-1)
 
-def eval_sg_at_dirs(sg_lambda : torch.Tensor, sg_mu : torch.Tensor, dirs : torch.Tensor):
+
+def eval_sg_at_dirs(sg_lambda: torch.Tensor, sg_mu: torch.Tensor, dirs: torch.Tensor):
     """
     Evaluate spherical Gaussian functions at unit directions
     using learnable SG basis,
@@ -459,13 +474,14 @@ def eval_sg_at_dirs(sg_lambda : torch.Tensor, sg_mu : torch.Tensor, dirs : torch
         "i,...i->...i", sg_lambda, product - 1))  # [..., N]
     return basis
 
+
 def init_weights(m):
     if type(m) == nn.Linear:
         nn.init.xavier_uniform_(m.weight)
         m.bias.data.fill_(0.0)
 
 
-def cross_broadcast(x : torch.Tensor, y : torch.Tensor):
+def cross_broadcast(x: torch.Tensor, y: torch.Tensor):
     """
     Cross broadcasting for 2 tensors
 
@@ -481,22 +497,23 @@ def cross_broadcast(x : torch.Tensor, y : torch.Tensor):
                 :code:`b'i = bi if (ai > 1 and bi > 1) else max(ai, bi)`
     """
     assert x.ndim == y.ndim, "Only available if ndim is same for all tensors"
-    max_shape = [(-1 if (a > 1 and b > 1) else max(a,b)) for i, (a, b)
-                    in enumerate(zip(x.shape, y.shape))]
+    max_shape = [(-1 if (a > 1 and b > 1) else max(a, b)) for i, (a, b)
+                 in enumerate(zip(x.shape, y.shape))]
     shape_x = [max(a, m) for m, a in zip(max_shape, x.shape)]
     shape_y = [max(b, m) for m, b in zip(max_shape, y.shape)]
     x = x.broadcast_to(shape_x)
     y = y.broadcast_to(shape_y)
     return x, y
 
+
 def posenc(
-    x: torch.Tensor,
-    cov_diag: Optional[torch.Tensor],
-    min_deg: int,
-    max_deg: int,
-    include_identity: bool = True,
-    enable_ipe: bool = True,
-    cutoff: float = 1.0,
+        x: torch.Tensor,
+        cov_diag: Optional[torch.Tensor],
+        min_deg: int,
+        max_deg: int,
+        include_identity: bool = True,
+        enable_ipe: bool = True,
+        cutoff: float = 1.0,
 ):
     """
     Positional encoding function. Adapted from jaxNeRF
@@ -549,9 +566,9 @@ def posenc(
     return four_feat
 
 
-def net_to_dict(out_dict : dict,
-                prefix : str,
-                model : nn.Module):
+def net_to_dict(out_dict: dict,
+                prefix: str,
+                model: nn.Module):
     for child in model.named_children():
         layer_name = child[0]
         layer_params = {}
@@ -560,9 +577,10 @@ def net_to_dict(out_dict : dict,
             param_value = param[1].data.cpu().numpy()
             out_dict['pt__' + prefix + '__' + layer_name + '__' + param_name] = param_value
 
+
 def net_from_dict(in_dict,
-                  prefix : str,
-                  model : nn.Module):
+                  prefix: str,
+                  model: nn.Module):
     for child in model.named_children():
         layer_name = child[0]
         layer_params = {}
@@ -570,7 +588,7 @@ def net_from_dict(in_dict,
             param_name = param[0]
             value = in_dict['pt__' + prefix + '__' + layer_name + '__' + param_name]
             param_value = param[1].data[:] = torch.from_numpy(value).to(
-                    device=param[1].data.device)
+                device=param[1].data.device)
 
 
 def convert_to_ndc(origins, directions, ndc_coeffs, near: float = 1.0):
@@ -608,6 +626,7 @@ def xyz2equirect(bearings, reso):
     y = reso * (0.5 - lat / np.pi)
     return torch.stack([x, y], dim=-1)
 
+
 class Timing:
     """
     Timing environment
@@ -629,4 +648,3 @@ class Timing:
         self.end.record()
         torch.cuda.synchronize()
         print(self.name, "elapsed", self.start.elapsed_time(self.end), "ms")
-

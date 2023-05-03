@@ -5,25 +5,22 @@ Requires colmap installed
 # Copyright 2021 Oliver Wang (Adobe Research), with modifications by Alex Yu
 # Similar version also found https://github.com/kwea123/nsff_pl/blob/master/preprocess.py 
 
+import argparse
+import glob
+import os
+from warnings import warn
+
 import cv2
 import moviepy
 import moviepy.editor
 import numpy
-import argparse
-import os
-import random
-import shutil
-import sys
-import tempfile
+import numpy as np
 import torch
 import torchvision
-import glob
-import numpy as np
 from tqdm import tqdm
-from warnings import warn
-
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
 
 def read_colmap(strPath):
     # https://github.com/colmap/colmap/blob/master/src/ui/model_viewer_widget.cc#L71
@@ -43,7 +40,7 @@ def read_colmap(strPath):
             objImage.qvec / (numpy.linalg.norm(objImage.qvec) + 0.0000001))
         npyExtrinsics[0:3, 3] = objImage.tvec
 
-        if objIntrinsics.model=='SIMPLE_RADIAL':
+        if objIntrinsics.model == 'SIMPLE_RADIAL':
             objCameras[objImage.name] = {
                 'model': objIntrinsics.model,
                 'intIdent': objImage.id,
@@ -56,7 +53,7 @@ def read_colmap(strPath):
                 'npyExtrinsics': npyExtrinsics,
                 'intPoints': [intPoint for intPoint in objImage.point3D_ids if intPoint != -1]
             }
-        elif objIntrinsics.model=='SIMPLE_PINHOLE':
+        elif objIntrinsics.model == 'SIMPLE_PINHOLE':
             objCameras[objImage.name] = {
                 'model': objIntrinsics.model,
                 'intIdent': objImage.id,
@@ -183,6 +180,7 @@ def resize_frames(vid_root, args):
         cv2.imwrite(out_frame_fn, im)
     return factor
 
+
 def run_colmap(vid_root, args, factor, overwrite=False):
     max_num_matches = 132768
     overlap_frames = 75  # only used with sequential matching
@@ -257,7 +255,7 @@ def run_colmap(vid_root, args, factor, overwrite=False):
             --Mapper.ba_refine_extra_params=0 '''
 
     os.system(mapper_cmd)
-    
+
     if not args.noradial:
         print("Warning: I've found the undistorter to work very poorly, substantially reducing quality.")
         print("A potential (fairly easy) improvement is to support OPENCV camera model in the codebase, "
@@ -274,9 +272,9 @@ def run_colmap(vid_root, args, factor, overwrite=False):
 
 
 def render_movie(vid_root, args):
-
     vid_name = os.path.basename(os.path.abspath(vid_root))
-    files = sorted(glob.glob(os.path.join(vid_root, args.image_input , '*.png')) + glob.glob(os.path.join(vid_root, args.image_input , '*.jpg')))
+    files = sorted(glob.glob(os.path.join(vid_root, args.image_input, '*.png')) + glob.glob(
+        os.path.join(vid_root, args.image_input, '*.jpg')))
     movie_fn = os.path.join(vid_root, f'{vid_name}_debug.mp4')
 
     #  if os.path.exists(movie_fn):
@@ -299,17 +297,16 @@ def render_movie(vid_root, args):
 
         if fn in obj_cameras:
             obj_camera = obj_cameras[fn]
-            if obj_camera['model']=='SIMPLE_RADIAL':
+            if obj_camera['model'] == 'SIMPLE_RADIAL':
                 im = cv2.undistort(
                     src=im,
                     cameraMatrix=obj_camera['npyIntrinsics'],
                     distCoeffs=(obj_camera['dblRadial'], obj_camera['dblRadial'], 0.0, 0.0))
-            elif obj_camera['model']=='SIMPLE_PINHOLE':
+            elif obj_camera['model'] == 'SIMPLE_PINHOLE':
                 im = cv2.undistort(
                     src=im,
                     cameraMatrix=obj_camera['npyIntrinsics'],
-                    distCoeffs=(0.0,0.0,0.0,0.0))
-
+                    distCoeffs=(0.0, 0.0, 0.0, 0.0))
 
             for obj_point in [obj_points[int_point] for int_point in obj_camera['intPoints']]:
                 npyPoint = numpy.append(obj_point['npyLocation'], 1.0)
@@ -332,8 +329,7 @@ def render_movie(vid_root, args):
     ]
     moviepy.editor.ImageSequenceClip(
         sequence=debug_dir, fps=25).write_videofile(
-            movie_fn, ffmpeg_params=ffmpeg_params)
-
+        movie_fn, ffmpeg_params=ffmpeg_params)
 
 
 def compute_poses(vid_root, args, overwrite=False):
@@ -384,22 +380,24 @@ if __name__ == '__main__':
     parser.add_argument(
         'vids', type=str, nargs='+', help='path to root with frames folder')
     parser.add_argument('--colmap-root', type=str, default='/home/sxyu/builds/colmap',
-                help="COLMAP installation dir (only needed for vocab tree in case of sequential matcher)")
+                        help="COLMAP installation dir (only needed for vocab tree in case of sequential matcher)")
     parser.add_argument('--image-input', default='raw', help='location for source images')
     parser.add_argument('--mask-output', default='masks', help='location to store motion masks')
-    parser.add_argument('--known-intrin', action='store_true', default=False, help='use intrinsics in <root>/intrinsics.txt if available')
-    parser.add_argument('--fix-intrin', action='store_true', default=False, help='fix intrinsics in bundle adjustment, only used if --known-intrin is given and intrinsics.txt exists')
+    parser.add_argument('--known-intrin', action='store_true', default=False,
+                        help='use intrinsics in <root>/intrinsics.txt if available')
+    parser.add_argument('--fix-intrin', action='store_true', default=False,
+                        help='fix intrinsics in bundle adjustment, only used if --known-intrin is given and intrinsics.txt exists')
     parser.add_argument('--debug', action='store_true', default=False, help='render debug video')
     parser.add_argument('--noradial', action='store_true', default=True, help='do not use radial distortion')
     parser.add_argument('--use-masks', action='store_true', default=False, help='use automatic masks')
     parser.add_argument(
-                    '--images-resized', default='images_resized', help='location for resized/renamed images')
+        '--images-resized', default='images_resized', help='location for resized/renamed images')
     parser.add_argument(
         '--do-sequential', action='store_true', default=False, help='sequential rather than exhaustive matching')
     parser.add_argument('--max-width', type=int, default=1280, help='max image width')
     parser.add_argument('--max-height', type=int, default=768, help='max image height')
     parser.add_argument(
-            '--undistorted-output', default='images', help='location of undistorted images')
+        '--undistorted-output', default='images', help='location of undistorted images')
 
     args = parser.parse_args()
     if args.noradial:

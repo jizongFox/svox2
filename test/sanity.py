@@ -1,8 +1,8 @@
 import torch
+
 import svox2
 
 device = 'cuda:0'
-
 
 torch.random.manual_seed(4000)
 g = svox2.SparseGrid(center=[0.0, 0.0, 0.0],
@@ -24,7 +24,7 @@ g.sh_data.data[..., 1:] = torch.randn_like(g.sh_data.data[..., 1:]) * 0.01
 if g.use_background:
     g.background_data.data[..., -1] = 1.0
     g.background_data.data[..., :-1] = torch.randn_like(
-            g.background_data.data[..., :-1]) * 0.01
+        g.background_data.data[..., :-1]) * 0.01
     #  g.background_data.data[..., :-1] = 0.5
 
 g.basis_data.data.normal_()

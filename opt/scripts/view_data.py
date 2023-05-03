@@ -3,9 +3,9 @@ Basic data visualization (using PlenOctree's volrend)
 Usage: python view_data.py <data_root>
 default output: data_vis.html. You can open this in your browser. (bash sensei/mkweb)
 """
+import os
 # Copyright 2021 Alex Yu
 import sys
-import os
 from os import path
 
 DIR_PATH = path.dirname(os.path.realpath(__file__))
@@ -17,6 +17,7 @@ import math
 from argparse import ArgumentParser
 from nerfvis import Scene  # pip install nerfvis
 from scipy.spatial.transform import Rotation
+
 
 # BEGIN BORROWED CODE
 # Copyright (c) 2006, Christoph Gohlke
@@ -33,7 +34,7 @@ def unit_vector(data, axis=None, out=None):
         if out is not data:
             out[:] = np.array(data, copy=False)
         data = out
-    length = np.atleast_1d(np.sum(data*data, axis))
+    length = np.atleast_1d(np.sum(data * data, axis))
     np.sqrt(length, length)
     if axis is not None:
         length = np.expand_dims(length, axis)
@@ -41,21 +42,22 @@ def unit_vector(data, axis=None, out=None):
     if out is None:
         return data
 
+
 def rotation_matrix(angle, direction, point=None):
     """Return matrix to rotate about axis defined by point and direction.  """
     sina = math.sin(angle)
     cosa = math.cos(angle)
     direction = unit_vector(direction[:3])
     # rotation matrix around unit vector
-    R = np.array(((cosa, 0.0,  0.0),
-                     (0.0,  cosa, 0.0),
-                     (0.0,  0.0,  cosa)), dtype=np.float64)
+    R = np.array(((cosa, 0.0, 0.0),
+                  (0.0, cosa, 0.0),
+                  (0.0, 0.0, cosa)), dtype=np.float64)
     R += np.outer(direction, direction) * (1.0 - cosa)
     direction *= sina
-    R += np.array(((0.0,         -direction[2],  direction[1]),
-                      (direction[2], 0.0,          -direction[0]),
-                      (-direction[1], direction[0],  0.0)),
-                     dtype=np.float64)
+    R += np.array(((0.0, -direction[2], direction[1]),
+                   (direction[2], 0.0, -direction[0]),
+                   (-direction[1], direction[0], 0.0)),
+                  dtype=np.float64)
     M = np.identity(4)
     M[:3, :3] = R
     if point is not None:
@@ -63,6 +65,7 @@ def rotation_matrix(angle, direction, point=None):
         point = np.array(point[:3], dtype=np.float64, copy=False)
         M[:3, 3] = point - np.dot(R, point)
     return M
+
 
 def get_best_yaw(C):
     '''
@@ -76,11 +79,13 @@ def get_best_yaw(C):
 
     return theta
 
+
 def rot_z(theta):
     R = tfs.rotation_matrix(theta, [0, 0, 1])
     R = R[0:3, 0:3]
 
     return R
+
 
 def align_umeyama(model, data, known_scale=False, yaw_only=False):
     """Implementation of the paper: S. Umeyama, Least-Squares Estimation
@@ -109,15 +114,15 @@ def align_umeyama(model, data, known_scale=False, yaw_only=False):
     n = np.shape(model)[0]
 
     # correlation
-    C = 1.0/n*np.dot(model_zerocentered.transpose(), data_zerocentered)
-    sigma2 = 1.0/n*np.multiply(data_zerocentered, data_zerocentered).sum()
+    C = 1.0 / n * np.dot(model_zerocentered.transpose(), data_zerocentered)
+    sigma2 = 1.0 / n * np.multiply(data_zerocentered, data_zerocentered).sum()
     U_svd, D_svd, V_svd = np.linalg.linalg.svd(C)
 
     D_svd = np.diag(D_svd)
     V_svd = np.transpose(V_svd)
 
     S = np.eye(3)
-    if(np.linalg.det(U_svd)*np.linalg.det(V_svd) < 0):
+    if (np.linalg.det(U_svd) * np.linalg.det(V_svd) < 0):
         S[2, 2] = -1
 
     if yaw_only:
@@ -130,16 +135,17 @@ def align_umeyama(model, data, known_scale=False, yaw_only=False):
     if known_scale:
         s = 1
     else:
-        s = 1.0/sigma2*np.trace(np.dot(D_svd, S))
+        s = 1.0 / sigma2 * np.trace(np.dot(D_svd, S))
 
-    t = mu_M-s*np.dot(R, mu_D)
+    t = mu_M - s * np.dot(R, mu_D)
 
     return s, R, t
 
-def align_procrustes_rt(t_a : np.ndarray, q_a : np.ndarray,
-                        t_ref : np.ndarray,
-                        use_first_k : int = 1000000,
-                        want_transform : bool = False):
+
+def align_procrustes_rt(t_a: np.ndarray, q_a: np.ndarray,
+                        t_ref: np.ndarray,
+                        use_first_k: int = 1000000,
+                        want_transform: bool = False):
     """
     Align translation +  rotation
     :param t_a: camera translations to align (N, 3)
@@ -164,27 +170,31 @@ def align_procrustes_rt(t_a : np.ndarray, q_a : np.ndarray,
     #
     #  _, R, t = align_umeyama(np.concatenate([t_ref, t_ref_aug], axis=0), np.concatenate([t_a * s, t_a_aug * s], axis=0), known_scale=True)
 
-    def transform(t_b : np.ndarray, q_b : np.ndarray):
+    def transform(t_b: np.ndarray, q_b: np.ndarray):
         t_align = s * t_b @ R.T + t
         Ra = Rotation.from_matrix(R)
         q_align = (Ra * Rotation.from_matrix(q_b)).as_matrix()
         return t_align, q_align
+
     return transform if want_transform else transform(t_a, q_a)
+
 
 # END BORROWED CODE
 
-def get_image_size(path : str):
+def get_image_size(path: str):
     """
     Get image size without loading it
     """
     from PIL import Image
     im = Image.open(path)
-    return im.size # W, H
+    return im.size  # W, H
+
 
 def sort_key(x):
     if len(x) > 2 and x[1] == "_":
         return x[2:]
     return x
+
 
 def main():
     parser = ArgumentParser()
@@ -226,7 +236,8 @@ def main():
     print("INTRIN_PATH", intrin_path)
     print("POINT_CLOUD_PATH", point_cloud_path)
     pose_files = sorted([x for x in os.listdir(pose_dir) if x.lower().endswith('.txt')], key=sort_key)
-    image_files = sorted([x for x in os.listdir(images_dir) if x.lower().endswith('.png') or x.lower().endswith('.jpg')], key=sort_key)
+    image_files = sorted(
+        [x for x in os.listdir(images_dir) if x.lower().endswith('.png') or x.lower().endswith('.jpg')], key=sort_key)
 
     all_poses = []
     for i, pose_file in enumerate(pose_files):
@@ -254,7 +265,7 @@ def main():
                          [-cross[1], cross[0], 0.0]])
         R_align = np.eye(3)
         if c > -1:
-            R_align = R_align + skew + (skew @ skew) * 1 / (1+c)
+            R_align = R_align + skew + (skew @ skew) * 1 / (1 + c)
         else:
             # In the unlikely case the original data has y+ up axis,
             # rotate 180-deg about x axis
@@ -294,9 +305,8 @@ def main():
 
     scene = Scene("colmap dataset: " + dataset_name)
 
-
     # Try to pick a good frustum size
-    avg_dist : float = np.mean(np.linalg.norm(t[1:] - t[:-1], axis=-1))
+    avg_dist: float = np.mean(np.linalg.norm(t[1:] - t[:-1], axis=-1))
     cam_scale = avg_dist * 0.3
 
     # Infer world up direction from GT cams
@@ -336,7 +346,8 @@ def main():
         R_gt = all_gt_poses[:, :3, :3]
         t_gt = all_gt_poses[:, :3, 3]
         pose_files_st = set(pose_files)
-        pose_gt_inds = np.array([i for i, pose_gt_file in enumerate(pose_gt_files) if pose_gt_file in pose_files_st], dtype=np.int64)
+        pose_gt_inds = np.array([i for i, pose_gt_file in enumerate(pose_gt_files) if pose_gt_file in pose_files_st],
+                                dtype=np.int64)
         print(len(pose_gt_inds), 'of', len(pose_gt_files), 'registered')
         if len(pose_gt_inds) < len(pose_gt_files):
             warnings.warn("Not all frames registered")
@@ -345,8 +356,8 @@ def main():
         r_gt = R_gt.reshape(-1, 9)
 
         transform = align_procrustes_rt(
-                t_gt[pose_gt_inds], r_gt[pose_gt_inds],
-                t, r, use_first_k=args.n_cameras_for_procrustes, want_transform=True)
+            t_gt[pose_gt_inds], r_gt[pose_gt_inds],
+            t, r, use_first_k=args.n_cameras_for_procrustes, want_transform=True)
 
         t_gt, r_gt = transform(t_gt, r_gt)
         R_gt = r_gt.reshape(-1, 3, 3)
@@ -368,14 +379,12 @@ def main():
         point_cloud *= scale
         scene.add_points("point_cloud", point_cloud, color=[0.0, 0.0, 0.0], unlit=True)
 
-
     out_dir = path.join(args.data_dir, "visual")
     scene.add_axes(length=1.0, visible=False)
     scene.add_sphere("Unit Sphere", visible=False)
     scene.add_wireframe_cube("Unit Cube", scale=2, visible=False)
     print('WRITING', out_dir)
     scene.display(out_dir, world_up=world_up, cam_origin=origin, cam_center=center, cam_forward=vforward)
-
 
 
 if __name__ == "__main__":

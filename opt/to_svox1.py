@@ -1,10 +1,7 @@
-import svox2
-import svox
-import math
 import argparse
 from os import path
-from tqdm import tqdm
-import torch
+
+import svox2
 
 parser = argparse.ArgumentParser()
 parser.add_argument('ckpt', type=str)

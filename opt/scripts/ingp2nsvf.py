@@ -2,16 +2,17 @@
 Convert NeRF-iNGP data to NSVF
 python ingp2nsvf.py <ngp_data_dir> <our_data_dir>
 """
+import argparse
+import json
 import os
 import shutil
 from glob import glob
-import json
 
 import numpy as np
 from PIL import Image
-import argparse
 
-def convert(data_dir : str, out_data_dir : str):
+
+def convert(data_dir: str, out_data_dir: str):
     """
     Convert Instant-NGP (modified NeRF) data to NSVF
 

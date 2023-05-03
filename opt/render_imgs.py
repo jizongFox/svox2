@@ -1,27 +1,29 @@
 # Copyright 2021 Alex Yu
 # Eval
 
-import torch
-import svox2
-import svox2.utils
-import math
 import argparse
-import numpy as np
+import math
 import os
 from os import path
-from util.dataset import datasets
-from util.util import Timing, compute_ssim, viridis_cmap
-from util import config_util
 
-import imageio
 import cv2
+import imageio
+import numpy as np
+import torch
 from tqdm import tqdm
+
+import svox2.utils
+from util import config_util
+from util.dataset import datasets
+from util.util import compute_ssim, viridis_cmap
+
 parser = argparse.ArgumentParser()
 parser.add_argument('ckpt', type=str)
 
 config_util.define_common_args(parser)
 
-parser.add_argument('--n_eval', '-n', type=int, default=100000, help='images to evaluate (equal interval), at most evals every image')
+parser.add_argument('--n_eval', '-n', type=int, default=100000,
+                    help='images to evaluate (equal interval), at most evals every image')
 parser.add_argument('--train', action='store_true', default=False, help='render train set')
 parser.add_argument('--render_path',
                     action='store_true',
@@ -31,7 +33,7 @@ parser.add_argument('--timing',
                     action='store_true',
                     default=False,
                     help="Run only for timing (do not save images or use LPIPS/SSIM; "
-                    "still computes PSNR to make sure images are being generated)")
+                         "still computes PSNR to make sure images are being generated)")
 parser.add_argument('--no_lpips',
                     action='store_true',
                     default=False,
@@ -86,12 +88,13 @@ if args.timing:
 
 if not args.no_lpips:
     import lpips
+
     lpips_vgg = lpips.LPIPS(net="vgg").eval().to(device)
 if not path.isfile(args.ckpt):
     args.ckpt = path.join(args.ckpt, 'ckpt.npz')
 
 render_dir = path.join(path.dirname(args.ckpt),
-            'train_renders' if args.train else 'test_renders')
+                       'train_renders' if args.train else 'test_renders')
 want_metrics = True
 if args.render_path:
     assert not args.train
@@ -109,7 +112,7 @@ if args.ray_len:
     want_metrics = False
 
 dset = datasets[args.dataset_type](args.data_dir, split="test_train" if args.train else "test",
-                                    **config_util.build_data_options(args))
+                                   **config_util.build_data_options(args))
 
 grid = svox2.SparseGrid.load(args.ckpt, device=device)
 
@@ -196,7 +199,7 @@ with torch.no_grad():
         if not args.render_path:
             im_gt = dset.gt[img_id].to(device=device)
             mse = (im - im_gt) ** 2
-            mse_num : float = mse.mean().item()
+            mse_num: float = mse.mean().item()
             psnr = -10.0 * math.log10(mse_num)
             avg_psnr += psnr
             if not args.timing:
@@ -204,7 +207,7 @@ with torch.no_grad():
                 avg_ssim += ssim
                 if not args.no_lpips:
                     lpips_i = lpips_vgg(im_gt.permute([2, 0, 1]).contiguous(),
-                            im.permute([2, 0, 1]).contiguous(), normalize=True).item()
+                                        im.permute([2, 0, 1]).contiguous(), normalize=True).item()
                     avg_lpips += lpips_i
                     print(img_id, 'PSNR', psnr, 'SSIM', ssim, 'LPIPS', lpips_i)
                 else:
@@ -217,7 +220,7 @@ with torch.no_grad():
         if not args.timing:
             im = (im * 255).astype(np.uint8)
             if not args.no_imsave:
-                imageio.imwrite(img_path,im)
+                imageio.imwrite(img_path, im)
             if not args.no_vid:
                 frames.append(im)
         im = None
@@ -242,5 +245,3 @@ with torch.no_grad():
     if not args.no_vid and len(frames):
         vid_path = render_dir + '.mp4'
         imageio.mimwrite(vid_path, frames, fps=args.fps, macro_block_size=8)  # pip install imageio-ffmpeg
-
-

@@ -1,14 +1,14 @@
+from dataclasses import dataclass
+from typing import Optional, Union, List
+
+import cv2
+import numpy as np
 import torch
 import torch.cuda
 import torch.nn.functional as F
-from typing import Optional, Union, List
-from dataclasses import dataclass
-import numpy as np
-import cv2
-from scipy.spatial.transform import Rotation
-from scipy.interpolate import CubicSpline
 from matplotlib import pyplot as plt
-from warnings import warn
+from scipy.interpolate import CubicSpline
+from scipy.spatial.transform import Rotation
 
 
 @dataclass
@@ -32,6 +32,7 @@ class Rays:
     def __len__(self):
         return self.origins.size(0)
 
+
 @dataclass
 class Intrin:
     fx: Union[float, torch.Tensor]
@@ -41,13 +42,13 @@ class Intrin:
 
     def scale(self, scaling: float):
         return Intrin(
-                    self.fx * scaling,
-                    self.fy * scaling,
-                    self.cx * scaling,
-                    self.cy * scaling
-                )
+            self.fx * scaling,
+            self.fy * scaling,
+            self.cx * scaling,
+            self.cy * scaling
+        )
 
-    def get(self, field:str, image_id:int=0):
+    def get(self, field: str, image_id: int = 0):
         val = self.__dict__[field]
         return val if isinstance(val, float) else val[image_id].item()
 
@@ -76,7 +77,7 @@ class Timing:
 
 
 def get_expon_lr_func(
-    lr_init, lr_final, lr_delay_steps=0, lr_delay_mult=1.0, max_steps=1000000
+        lr_init, lr_final, lr_delay_steps=0, lr_delay_mult=1.0, max_steps=1000000
 ):
     """
     Continuous learning rate decay function. Adapted from JaxNeRF
@@ -151,6 +152,7 @@ def equirect2xyz(uv, rows, cols):
         axis=-1,
     )
 
+
 def xyz2equirect(bearings, rows, cols):
     """
     Convert ray direction vectors into equirectangular pixel coordinates.
@@ -162,6 +164,7 @@ def xyz2equirect(bearings, rows, cols):
     x = cols * (0.5 + lon / 2 / np.pi)
     y = rows * (0.5 - lat / np.pi)
     return np.stack([x, y], axis=-1)
+
 
 def generate_dirs_equirect(w, h):
     x, y = np.meshgrid(  # pylint: disable=unbalanced-tuple-unpacking
@@ -175,10 +178,10 @@ def generate_dirs_equirect(w, h):
 
 
 # Data
-def select_or_shuffle_rays(rays_init : Rays,
-                 permutation: int = False,
-                 epoch_size: Optional[int] = None,
-                 device: Union[str, torch.device] = "cpu"):
+def select_or_shuffle_rays(rays_init: Rays,
+                           permutation: int = False,
+                           epoch_size: Optional[int] = None,
+                           device: Union[str, torch.device] = "cpu"):
     n_rays = rays_init.origins.size(0)
     n_samp = n_rays if (epoch_size is None) else epoch_size
     if permutation:
@@ -191,14 +194,14 @@ def select_or_shuffle_rays(rays_init : Rays,
 
 
 def compute_ssim(
-    img0,
-    img1,
-    max_val=1.0,
-    filter_size=11,
-    filter_sigma=1.5,
-    k1=0.01,
-    k2=0.03,
-    return_map=False,
+        img0,
+        img1,
+        max_val=1.0,
+        filter_size=11,
+        filter_sigma=1.5,
+        k1=0.01,
+        k2=0.03,
+        return_map=False,
 ):
     """Computes SSIM from two images.
 
@@ -265,7 +268,7 @@ def compute_ssim(
     numer = (2 * mu01 + c1) * (2 * sigma01 + c2)
     denom = (mu00 + mu11 + c1) * (sigma00 + sigma11 + c2)
     ssim_map = numer / denom
-    ssim = torch.mean(ssim_map.reshape([-1, num_channels*width*height]), dim=-1)
+    ssim = torch.mean(ssim_map.reshape([-1, num_channels * width * height]), dim=-1)
     return ssim_map if return_map else ssim
 
 
@@ -341,14 +344,13 @@ def similarity_from_cameras(c2w):
                      [cross[2], 0.0, -cross[0]],
                      [-cross[1], cross[0], 0.0]])
     if c > -1:
-        R_align = np.eye(3) + skew + (skew @ skew) * 1 / (1+c)
+        R_align = np.eye(3) + skew + (skew @ skew) * 1 / (1 + c)
     else:
         # In the unlikely case the original data has y+ up axis,
         # rotate 180-deg about x axis
         R_align = np.array([[-1.0, 0.0, 0.0],
                             [0.0, 1.0, 0.0],
                             [0.0, 0.0, 1.0]])
-
 
     #  R_align = np.eye(3) # DEBUG
     R = (R_align @ R)
@@ -372,9 +374,10 @@ def similarity_from_cameras(c2w):
     scale = 1.0 / np.median(np.linalg.norm(t + translate, axis=-1))
     return transform, scale
 
-def jiggle_and_interp_poses(poses : torch.Tensor,
+
+def jiggle_and_interp_poses(poses: torch.Tensor,
                             n_inter: int,
-                            noise_std : float=0.0):
+                            noise_std: float = 0.0):
     """
     For generating a novel trajectory close to known trajectory
 
@@ -393,7 +396,7 @@ def jiggle_and_interp_poses(poses : torch.Tensor,
     t_out = np.linspace(t_in[0], t_in[-1], n_inter, dtype=np.float32)
 
     q_new = CubicSpline(t_in, pose_quat)
-    q_new : np.ndarray = q_new(t_out)
+    q_new: np.ndarray = q_new(t_out)
     q_new = q_new / np.linalg.norm(q_new, axis=-1)[..., None]
 
     t_new = CubicSpline(t_in, trans)
@@ -446,8 +449,9 @@ def _rot_theta(th):
         dtype=np.float32,
     )
 
-def pose_spherical(theta : float, phi : float, radius : float, offset : Optional[np.ndarray]=None,
-                   vec_up : Optional[np.ndarray]=None):
+
+def pose_spherical(theta: float, phi: float, radius: float, offset: Optional[np.ndarray] = None,
+                   vec_up: Optional[np.ndarray] = None):
     """
     Generate spherical rendering poses, from NeRF. Forgive the code horror
     :return: r (3,), t (3,)
@@ -456,11 +460,11 @@ def pose_spherical(theta : float, phi : float, radius : float, offset : Optional
     c2w = _rot_phi(phi / 180.0 * np.pi) @ c2w
     c2w = _rot_theta(theta / 180.0 * np.pi) @ c2w
     c2w = (
-        np.array(
-            [[-1, 0, 0, 0], [0, 0, 1, 0], [0, 1, 0, 0], [0, 0, 0, 1]],
-            dtype=np.float32,
-        )
-        @ c2w
+            np.array(
+                [[-1, 0, 0, 0], [0, 0, 1, 0], [0, 1, 0, 0], [0, 0, 0, 1]],
+                dtype=np.float32,
+            )
+            @ c2w
     )
     if vec_up is not None:
         vec_up = vec_up / np.linalg.norm(vec_up)

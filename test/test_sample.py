@@ -1,6 +1,6 @@
-import svox2
 import torch
-import numpy as np
+
+import svox2
 from util import Timing
 
 torch.random.manual_seed(0)
@@ -50,7 +50,7 @@ gst = grid.sh_data.grad.clone()
 
 #  print('c\n', sampc)
 #  print('t\n', sampt)
-print('err_sigma\n', torch.abs(sigma_t-sigma_c).max())
-print('err_rgb\n', torch.abs(rgb_t-rgb_c).max())
-print('err_grad_sigma\n', torch.abs(gdo-gdt).max())
-print('err_grad_rgb\n', torch.abs(gso-gst).max())
+print('err_sigma\n', torch.abs(sigma_t - sigma_c).max())
+print('err_rgb\n', torch.abs(rgb_t - rgb_c).max())
+print('err_grad_sigma\n', torch.abs(gdo - gdt).max())
+print('err_grad_rgb\n', torch.abs(gso - gst).max())

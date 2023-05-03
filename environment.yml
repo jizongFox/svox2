@@ -4,8 +4,8 @@ channels:
   - pytorch
   - defaults
 dependencies:
-  - python=3.8.8
-  - numpy>=1.16.4,<1.19.0
+  - python=3.10
+  - numpy
   - pip
   - pip:
       - imageio
@@ -22,8 +22,5 @@ dependencies:
       - moviepy
       - matplotlib
       - scipy>=1.6.0
-  - pytorch=1.11.0
-  - torchvision
-  - cudatoolkit
   - tqdm
 

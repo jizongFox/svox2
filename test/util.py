@@ -1,6 +1,7 @@
 import torch
 import torch.cuda
 
+
 class Timing:
     def __init__(self, name):
         self.name = name

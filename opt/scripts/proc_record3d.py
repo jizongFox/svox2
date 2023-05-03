@@ -1,12 +1,13 @@
-import json
 import argparse
+import glob
+import json
 import os
 from os import path
-import glob
-import numpy as np
+
 import cv2
-from tqdm import tqdm
+import numpy as np
 from scipy.spatial.transform import Rotation
+from tqdm import tqdm
 
 parser = argparse.ArgumentParser()
 parser.add_argument('data_dir', type=str)

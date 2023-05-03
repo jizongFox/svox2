@@ -3,3 +3,12 @@ __pycache__/
 *$py.class
 Session.vim
 ckpt/
+build
+*.egg
+*.out
+*.o
+cmake-build*
+.idea
+*.egg-info
+.eggs
+*.so

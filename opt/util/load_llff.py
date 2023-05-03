@@ -3,17 +3,20 @@
 # With minor modifications from NeX
 # https://github.com/nex-mpi/nex-code
 
-import numpy as np
 import os
-import imageio
 
-def get_image_size(path : str):
+import imageio
+import numpy as np
+
+
+def get_image_size(path: str):
     """
     Get image size without loading it
     """
     from PIL import Image
     im = Image.open(path)
-    return im.size[1], im.size[0]    # H, W
+    return im.size[1], im.size[0]  # H, W
+
 
 def _minify(basedir, factors=[], resolutions=[]):
     needtoload = False
@@ -28,7 +31,6 @@ def _minify(basedir, factors=[], resolutions=[]):
     if not needtoload:
         return
 
-    from shutil import copy
     from subprocess import check_output
 
     imgdir = os.path.join(basedir, "images")
@@ -296,16 +298,15 @@ def spherify_poses(poses, bds):
 
 
 def load_llff_data(
-    basedir,
-    factor=None,
-    recenter=True,
-    bd_factor=0.75,
-    spherify=False,
-    #  path_zflat=False,
-    split_train_val=8,
-    render_style="",
+        basedir,
+        factor=None,
+        recenter=True,
+        bd_factor=0.75,
+        spherify=False,
+        #  path_zflat=False,
+        split_train_val=8,
+        render_style="",
 ):
-
     # poses, bds, imgs = _load_data(basedir, factor=factor) # factor=8 downsamples original imgs by 8x
     poses, bds, intrinsic = _load_data(
         basedir, factor=factor, load_imgs=False
