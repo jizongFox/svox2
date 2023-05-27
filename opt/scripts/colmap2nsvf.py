@@ -320,9 +320,9 @@ def main():
     print("Get intrinsics")
     K = np.eye(4)
     K[0, 0] = cameras[0].params[0] / base_scale
-    K[1, 1] = cameras[0].params[0] / base_scale
-    K[0, 2] = cameras[0].params[1] / base_scale
-    K[1, 2] = cameras[0].params[2] / base_scale
+    K[1, 1] = cameras[0].params[1] / base_scale
+    K[0, 2] = cameras[0].params[2] / base_scale
+    K[1, 2] = cameras[0].params[3] / base_scale
     print("f", K[0, 0], "c", K[0:2, 2])
     np.savetxt(osp.join(base_dir, "intrinsics_colmap.txt" if args.colmap_suffix else "intrinsics.txt"), K)
     del K
