@@ -19,6 +19,7 @@ import torch
 import torch.cuda
 import torch.nn.functional as F
 import torch.optim
+from loguru import logger
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 
@@ -28,8 +29,12 @@ from util.dataset import datasets
 from util.util import get_expon_lr_func, generate_dirs_equirect, viridis_cmap
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
+_cparser = argparse.ArgumentParser(add_help=False)
+_cparser.add_argument('-c', "--config", type=str, help="config file", default=None)
+config_file = _cparser.parse_known_args()[0].config
+argv = _cparser.parse_known_args()[1]
 
-parser = argparse.ArgumentParser()
+parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter, )
 config_util.define_common_args(parser)
 
 group = parser.add_argument_group("general")
@@ -235,8 +240,11 @@ group.add_argument('--n_train', type=int, default=None, help='Number of training
 group.add_argument('--nosphereinit', action='store_true', default=False,
                    help='do not start with sphere bounds (please do not use for 360)')
 
-args = parser.parse_args()
-config_util.maybe_merge_config_file(args)
+if config_file is not None:
+    logger.debug(f"loading {config_file} as default values")
+    config_util.set_default_values(parser, config_path=config_file)
+
+args = parser.parse_args(args=argv)
 
 assert args.lr_sigma_final <= args.lr_sigma, "lr_sigma must be >= lr_sigma_final"
 assert args.lr_sh_final <= args.lr_sh, "lr_sh must be >= lr_sh_final"
@@ -256,7 +264,7 @@ with open(path.join(args.train_dir, 'args.json'), 'w') as f:
 torch.manual_seed(20200823)
 np.random.seed(20200823)
 
-factor = 1
+factor = 4
 dset = datasets[args.dataset_type](
     args.data_dir,
     split="train",
@@ -460,7 +468,7 @@ while True:
             print('eval stats:', stats_test)
 
 
-    if epoch_id % max(factor, args.eval_every) == 0:  # and (epoch_id > 0 or not args.tune_mode):
+    if epoch_id % max(1, args.eval_every) == 0:  # and (epoch_id > 0 or not args.tune_mode):
         # NOTE: we do an eval sanity check, if not in tune_mode
         eval_step()
         gc.collect()

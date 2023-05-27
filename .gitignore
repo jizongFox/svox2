@@ -12,3 +12,5 @@ cmake-build*
 *.egg-info
 .eggs
 *.so
+venv
+data

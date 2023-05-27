@@ -47,9 +47,11 @@ the images will be resized dynamically on load.
 
 The code to parse the COLMAP sparse bin files is from LLFF.
 """
+# Copyright 2021 Alex Yu
+
+
 import argparse
 import collections
-# Copyright 2021 Alex Yu
 import os
 import os.path as osp
 import shutil
@@ -138,8 +140,8 @@ def read_colmap_sparse(sparse_path):
             camera_id = camera_properties[0]
             model_id = camera_properties[1]
             model_name = CAMERA_MODEL_IDS[camera_properties[1]].model_name
-            assert model_name in ["SIMPLE_PINHOLE", "SIMPLE_RADIAL"], \
-                "Only SIMPLE_PINHOLE/SIMPLE_RADIAL supported"
+            assert model_name in ["SIMPLE_PINHOLE", "SIMPLE_RADIAL", "OPENCV"], \
+                f"Only SIMPLE_PINHOLE/SIMPLE_RADIAL supported, given {model_name}"
             width = camera_properties[2]
             height = camera_properties[3]
             num_params = CAMERA_MODEL_IDS[model_id].num_params
@@ -273,6 +275,7 @@ def main():
         default=False,
         help="Output to pose_colmap and intrinsics_colmap.txt to retain the gt poses/intrinsics if available",
     )
+    parser.add_argument("--no-autoscale", action="store_true", default=False, help="Do not autoscale")
     args = parser.parse_args()
 
     if args.sparse_dir.endswith("/"):
@@ -327,12 +330,17 @@ def main():
     print("Get world scaling")
     points = np.stack([p.xyz for p in points3D])
     cen = np.median(points, axis=0)
+    if args.no_autoscale:
+        cen = np.zeros_like(cen)
+
     points -= cen
     dists = (points ** 2).sum(axis=1)
 
     # FIXME: Questionable autoscaling. Adopt method from Noah Snavely
     meddist = np.median(dists)
-    points *= 2 * args.scale / meddist
+    if args.no_autoscale:
+        meddist = 1.0
+    points *= args.scale / meddist
 
     # Save the sparse point cloud
     np.save(osp.join(base_dir, "points.npy"), points)
@@ -349,7 +357,7 @@ def main():
         point3d_ids = im.point3D_ids
         #  w2c = np.concatenate([np.concatenate([R, t], 1), bottom], 0)
         t_world = -R.T @ t
-        t_world = (t_world - cen[:, None]) * 2 * args.scale / meddist
+        t_world = (t_world - cen[:, None]) * args.scale / meddist
         c2w = np.concatenate([np.concatenate([R.T, t_world], 1), bottom], 0)
 
         if args.gl_cam:

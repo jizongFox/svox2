@@ -10,6 +10,7 @@ import cv2
 import imageio
 import numpy as np
 import torch
+from loguru import logger
 from tqdm import tqdm
 
 from .dataset_base import DatasetBase
@@ -165,6 +166,7 @@ class NSVFDataset(DatasetBase):
 
             # Select subset of files
             T, sscale = similarity_from_cameras(norm_poses)
+            logger.info(f"finshed similarity_from_cameras, T={T}, sscale={sscale}")
 
             self.c2w_f64 = torch.from_numpy(T) @ self.c2w_f64
             scene_scale = cam_scale_factor * sscale
@@ -179,7 +181,9 @@ class NSVFDataset(DatasetBase):
         self.c2w_f64[:, :3, 3] *= scene_scale
         self.c2w = self.c2w_f64.float()
 
-        self.gt = torch.stack(all_gt).double() / 255.0
+        self.gt = torch.stack(all_gt) / 255.0
+        logger.info("finished loading data")
+
         if self.gt.size(-1) == 4:
             if white_bkgd:
                 # Apply alpha channel

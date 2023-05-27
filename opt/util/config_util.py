@@ -1,5 +1,6 @@
 import argparse
 import json
+from pathlib import Path
 
 from util.dataset import datasets
 
@@ -141,6 +142,18 @@ def maybe_merge_config_file(args, allow_invalid=False):
         if invalid_args and not allow_invalid:
             raise ValueError(f"Invalid args {invalid_args} in {args.config}.")
         args.__dict__.update(configs)
+
+
+def set_default_values(parser: argparse.ArgumentParser, config_path: str) -> argparse.ArgumentParser:
+    assert Path(config_path).exists(), f"Config file {config_path} does not exist."
+    with open(config_path, "r") as config_file:
+        configs = json.load(config_file)
+
+    for k in [x.dest for x in parser._actions]:
+        if k in configs:
+            parser.set_defaults(**{k: configs[k]})
+
+    return parser
 
 
 def setup_render_opts(opt, args):
