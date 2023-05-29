@@ -14,12 +14,12 @@ assert _C is not None, _C
 class _SampleGridAutogradFunction(autograd.Function):
     @staticmethod
     def forward(
-            ctx,
-            data_density: torch.Tensor,
-            data_sh: torch.Tensor,
-            grid,
-            points: torch.Tensor,
-            want_colors: bool,
+            ctx=None,
+            data_density: torch.Tensor = None,
+            data_sh: torch.Tensor = None,
+            grid=None,
+            points: torch.Tensor = None,
+            want_colors: bool = None,
     ):
         assert not points.requires_grad, "Point gradient not supported"
         out_density, out_sh = _C.sample_grid(grid, points, want_colors)
@@ -29,7 +29,7 @@ class _SampleGridAutogradFunction(autograd.Function):
         return out_density, out_sh
 
     @staticmethod
-    def backward(ctx, grad_out_density, grad_out_sh):
+    def backward(ctx, grad_out_density=None, grad_out_sh=None):
         (points,) = ctx.saved_tensors
         grad_density_grid = torch.zeros_like(ctx.grid.density_data.data)
         grad_sh_grid = torch.zeros_like(ctx.grid.sh_data.data)
@@ -53,15 +53,15 @@ class _SampleGridAutogradFunction(autograd.Function):
 class _VolumeRenderFunction(autograd.Function):
     @staticmethod
     def forward(
-            ctx,
-            data_density: torch.Tensor,
-            data_sh: torch.Tensor,
-            data_basis: torch.Tensor,
-            data_background: torch.Tensor,
-            grid,
-            rays,
-            opt,
-            backend: str,
+            ctx=None,
+            data_density: torch.Tensor = None,
+            data_sh: torch.Tensor = None,
+            data_basis: torch.Tensor = None,
+            data_background: torch.Tensor = None,
+            grid=None,
+            rays=None,
+            opt=None,
+            backend: str = None,
     ):
         cu_fn = _C.__dict__[f"volume_render_{backend}"]
         color = cu_fn(grid, rays, opt)
@@ -74,7 +74,7 @@ class _VolumeRenderFunction(autograd.Function):
         return color
 
     @staticmethod
-    def backward(ctx, grad_out):
+    def backward(ctx=None, grad_out=None):
         (color_cache,) = ctx.saved_tensors
         cu_fn = _C.__dict__[f"volume_render_{ctx.backend}_backward"]
         grad_density_grid = torch.zeros_like(ctx.grid.density_data.data)
@@ -121,15 +121,15 @@ class _VolumeRenderFunction(autograd.Function):
 class _TotalVariationFunction(autograd.Function):
     @staticmethod
     def forward(
-            ctx,
-            data: torch.Tensor,
-            links: torch.Tensor,
-            start_dim: int,
-            end_dim: int,
-            use_logalpha: bool,
-            logalpha_delta: float,
-            ignore_edge: bool,
-            ndc_coeffs: Tuple[float, float],
+            ctx=None,
+            data: torch.Tensor = None,
+            links: torch.Tensor = None,
+            start_dim: int = None,
+            end_dim: int = None,
+            use_logalpha: bool = None,
+            logalpha_delta: float = None,
+            ignore_edge: bool = None,
+            ndc_coeffs: Tuple[float, float] = None,
     ):
         tv = _C.tv(
             links,

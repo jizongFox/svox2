@@ -166,7 +166,7 @@ class NSVFDataset(DatasetBase):
 
             # Select subset of files
             T, sscale = similarity_from_cameras(norm_poses)
-            logger.info(f"finshed similarity_from_cameras, T={T}, sscale={sscale}")
+            # logger.info(f"finshed similarity_from_cameras, T={T}, sscale={sscale}")
 
             self.c2w_f64 = torch.from_numpy(T) @ self.c2w_f64
             scene_scale = cam_scale_factor * sscale
