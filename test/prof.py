@@ -5,7 +5,7 @@ import pyprof
 import torch
 import torch.cuda.profiler as profiler
 
-import svox2
+import svox2.cameras
 
 device = 'cuda:0'
 
@@ -22,7 +22,7 @@ N_RAYS = 5000
 origins = torch.zeros((N_RAYS, 3), device=device, dtype=torch.float32)
 dirs: torch.Tensor = torch.randn((N_RAYS, 3), device=device, dtype=torch.float32)
 dirs /= torch.norm(dirs, dim=-1, keepdim=True)
-rays = svox2.Rays(origins, dirs)
+rays = svox2.cameras.Rays(origins, dirs)
 
 grid.requires_grad_(True)
 

@@ -1,7 +1,7 @@
 import torch
 import torch.nn.functional as F
 
-import svox2
+import svox2.cameras
 from util import Timing
 
 torch.random.manual_seed(2)
@@ -56,7 +56,7 @@ dirs /= torch.norm(dirs, dim=-1, keepdim=True)
 #  print(origins.tolist(), dirs.tolist())
 
 #  breakpoint()
-rays = svox2.Rays(origins, dirs)
+rays = svox2.cameras.Rays(origins, dirs)
 
 rgb_gt = torch.zeros((origins.size(0), 3), device=device, dtype=dtype)
 

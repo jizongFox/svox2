@@ -2,7 +2,7 @@ import numpy as np
 import torch
 from matplotlib import pyplot as plt
 
-import svox2
+import svox2.cameras
 from util import Timing
 
 device = 'cuda:0'
@@ -40,7 +40,7 @@ with torch.no_grad():
     dirs = torch.matmul(c2w[None, :3, :3].double(), dirs[..., None])[..., 0].float()
     dirs = dirs / torch.norm(dirs, dim=-1, keepdim=True)
 
-    rays = svox2.Rays(origins, dirs)
+    rays = svox2.cameras.Rays(origins, dirs)
 
     for i in range(5):
         with Timing("ours"):

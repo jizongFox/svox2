@@ -1,6 +1,6 @@
 import torch
 
-import svox2
+import svox2.cameras
 from util import Timing
 
 torch.random.manual_seed(0)
@@ -25,7 +25,7 @@ N_RAYS = 200 * 200
 origins = torch.zeros((N_RAYS, 3), device=device, dtype=dtype)
 dirs: torch.Tensor = torch.randn((N_RAYS, 3), device=device, dtype=dtype)
 dirs /= torch.norm(dirs, dim=-1, keepdim=True)
-rays = svox2.Rays(origins, dirs)
+rays = svox2.cameras.Rays(origins, dirs)
 
 grid.requires_grad_(True)
 

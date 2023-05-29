@@ -180,13 +180,13 @@ with torch.no_grad():
         w = dset_w if args.crop == 1.0 else int(dset_w * args.crop)
         h = dset_h if args.crop == 1.0 else int(dset_h * args.crop)
 
-        cam = svox2.Camera(c2ws[img_id],
-                           dset.intrins.get('fx', img_id),
-                           dset.intrins.get('fy', img_id),
-                           dset.intrins.get('cx', img_id) + (w - dset_w) * 0.5,
-                           dset.intrins.get('cy', img_id) + (h - dset_h) * 0.5,
-                           w, h,
-                           ndc_coeffs=dset.ndc_coeffs)
+        cam = svox2.cameras.Camera(c2ws[img_id],
+                                   dset.intrins.get('fx', img_id),
+                                   dset.intrins.get('fy', img_id),
+                                   dset.intrins.get('cx', img_id) + (w - dset_w) * 0.5,
+                                   dset.intrins.get('cy', img_id) + (h - dset_h) * 0.5,
+                                   w, h,
+                                   ndc_coeffs=dset.ndc_coeffs)
         im = grid.volume_render_image(cam, use_kernel=True, return_raylen=args.ray_len)
         if args.ray_len:
             minv, meanv, maxv = im.min().item(), im.mean().item(), im.max().item()

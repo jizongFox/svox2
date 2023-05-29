@@ -24,6 +24,7 @@ from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 
 import svox2
+import svox2.cameras
 from util import config_util
 from util.dataset import datasets
 from util.util import get_expon_lr_func, generate_dirs_equirect, viridis_cmap
@@ -333,14 +334,14 @@ print('Render options', grid.opt)
 gstep_id_base = 0
 
 resample_cameras = [
-    svox2.Camera(c2w.to(device=device),
-                 dset.intrins.get('fx', i),
-                 dset.intrins.get('fy', i),
-                 dset.intrins.get('cx', i),
-                 dset.intrins.get('cy', i),
-                 width=dset.get_image_size(i)[1],
-                 height=dset.get_image_size(i)[0],
-                 ndc_coeffs=dset.ndc_coeffs) for i, c2w in enumerate(dset.c2w)
+    svox2.cameras.Camera(c2w.to(device=device),
+                         dset.intrins.get('fx', i),
+                         dset.intrins.get('fy', i),
+                         dset.intrins.get('cx', i),
+                         dset.intrins.get('cy', i),
+                         width=dset.get_image_size(i)[1],
+                         height=dset.get_image_size(i)[0],
+                         ndc_coeffs=dset.ndc_coeffs) for i, c2w in enumerate(dset.c2w)
 ]
 ckpt_path = path.join(args.train_dir, 'ckpt.npz')
 
@@ -395,14 +396,14 @@ while True:
             n_images_gen = 0
             for i, img_id in tqdm(enumerate(img_ids), total=len(img_ids)):
                 c2w = dset_test.c2w[img_id].to(device=device)
-                cam = svox2.Camera(c2w,
-                                   dset_test.intrins.get('fx', img_id),
-                                   dset_test.intrins.get('fy', img_id),
-                                   dset_test.intrins.get('cx', img_id),
-                                   dset_test.intrins.get('cy', img_id),
-                                   width=dset_test.get_image_size(img_id)[1],
-                                   height=dset_test.get_image_size(img_id)[0],
-                                   ndc_coeffs=dset_test.ndc_coeffs)
+                cam = svox2.cameras.Camera(c2w,
+                                           dset_test.intrins.get('fx', img_id),
+                                           dset_test.intrins.get('fy', img_id),
+                                           dset_test.intrins.get('cx', img_id),
+                                           dset_test.intrins.get('cy', img_id),
+                                           width=dset_test.get_image_size(img_id)[1],
+                                           height=dset_test.get_image_size(img_id)[0],
+                                           ndc_coeffs=dset_test.ndc_coeffs)
                 rgb_pred_test = grid.volume_render_image(cam, use_kernel=True)
                 rgb_gt_test = dset_test.gt[img_id].to(device=device)
                 all_mses = ((rgb_gt_test - rgb_pred_test) ** 2).cpu()
@@ -496,7 +497,7 @@ while True:
             batch_origins = dset.rays.origins[batch_begin: batch_end]
             batch_dirs = dset.rays.dirs[batch_begin: batch_end]
             rgb_gt = dset.rays.gt[batch_begin: batch_end]
-            rays = svox2.Rays(batch_origins, batch_dirs)
+            rays = svox2.cameras.Rays(batch_origins, batch_dirs)
 
             #  with Timing("volrend_fused"):
             rgb_pred = grid.volume_render_fused(rays, rgb_gt,

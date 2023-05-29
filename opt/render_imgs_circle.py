@@ -220,13 +220,13 @@ with torch.no_grad():
         w = dset_w if args.crop == 1.0 else int(dset_w * args.crop)
         h = dset_h if args.crop == 1.0 else int(dset_h * args.crop)
 
-        cam = svox2.Camera(c2ws[img_id],
-                           dset.intrins.get('fx', 0),
-                           dset.intrins.get('fy', 0),
-                           w * 0.5,
-                           h * 0.5,
-                           w, h,
-                           ndc_coeffs=(-1.0, -1.0))
+        cam = svox2.cameras.Camera(c2ws[img_id],
+                                   dset.intrins.get('fx', 0),
+                                   dset.intrins.get('fy', 0),
+                                   w * 0.5,
+                                   h * 0.5,
+                                   w, h,
+                                   ndc_coeffs=(-1.0, -1.0))
         torch.cuda.synchronize()
         im = grid.volume_render_image(cam, use_kernel=True)
         torch.cuda.synchronize()
